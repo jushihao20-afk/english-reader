@@ -17,11 +17,6 @@ const els = {
   selectionBar: document.querySelector("#selectionBar"),
   selectionPreview: document.querySelector("#selectionPreview"),
   readSelectionButton: document.querySelector("#readSelectionButton"),
-  fullTranslationPanel: document.querySelector("#fullTranslationPanel"),
-  fullTranslationLabel: document.querySelector("#fullTranslationLabel"),
-  fullTranslationStatus: document.querySelector("#fullTranslationStatus"),
-  fullTranslationContent: document.querySelector("#fullTranslationContent"),
-  closeTranslationButton: document.querySelector("#closeTranslationButton"),
   statusDot: document.querySelector("#statusDot"),
   statusText: document.querySelector("#statusText"),
   wordCard: document.querySelector("#wordCard"),
@@ -145,10 +140,13 @@ function renderText(rawText) {
 
   els.reader.innerHTML = paragraphs
     .map((paragraph, index) => `
-      <p class="paragraph" data-paragraph="${index}">
-        <button class="paragraph-play" type="button" title="朗读本段" data-read-paragraph="${index}">▶</button>
-        ${tokenizeParagraph(paragraph)}
-      </p>
+      <div class="paragraph-block">
+        <p class="paragraph" data-paragraph="${index}">
+          <button class="paragraph-play" type="button" title="朗读本段" data-read-paragraph="${index}">▶</button>
+          ${tokenizeParagraph(paragraph)}
+        </p>
+        <div class="paragraph-translation" data-translation-for="${index}" hidden></div>
+      </div>
     `)
     .join("");
 
@@ -567,9 +565,10 @@ async function translateChunk(text, target, signal) {
 }
 
 function resetFullTranslation() {
-  els.fullTranslationPanel.hidden = true;
-  els.fullTranslationContent.innerHTML = "";
-  els.fullTranslationStatus.textContent = "准备翻译";
+  els.reader.querySelectorAll(".paragraph-translation").forEach((translation) => {
+    translation.hidden = true;
+    translation.innerHTML = "";
+  });
 }
 
 async function translateAllText() {
@@ -583,39 +582,36 @@ async function translateAllText() {
   lastLookupController = new AbortController();
   const target = els.targetLang.value;
   const targetLabel = targetLanguageLabels[target]?.replace("词义", "") || "目标语言";
-  els.fullTranslationPanel.hidden = false;
-  els.fullTranslationLabel.textContent = `全文翻译 · ${targetLabel}`;
-  els.fullTranslationContent.innerHTML = "";
+  resetFullTranslation();
   els.translateAllButton.disabled = true;
 
   try {
     for (let index = 0; index < paragraphs.length; index += 1) {
       const paragraph = paragraphs[index];
       const chunks = splitTextForTranslation(paragraph);
-      els.fullTranslationStatus.textContent = `正在翻译 ${index + 1}/${paragraphs.length}`;
+      setStatus(`正在翻译 ${index + 1}/${paragraphs.length}`);
       const translatedChunks = [];
 
       for (const chunk of chunks) {
         translatedChunks.push(await translateChunk(chunk, target, lastLookupController.signal));
       }
 
-      const block = document.createElement("div");
-      block.className = "translation-block";
-      block.innerHTML = `
-        <span>第 ${index + 1} 段</span>
-        <p>${escapeHtml(translatedChunks.join(" "))}</p>
-      `;
-      els.fullTranslationContent.append(block);
+      const translationBlock = els.reader.querySelector(`[data-translation-for="${index}"]`);
+      if (translationBlock) {
+        translationBlock.hidden = false;
+        translationBlock.innerHTML = `
+          <span>${escapeHtml(targetLabel)}翻译</span>
+          <p>${escapeHtml(translatedChunks.join(" "))}</p>
+        `;
+      }
     }
 
-    els.fullTranslationStatus.textContent = `已翻译 ${paragraphs.length} 段`;
     setStatus("全文翻译完成");
   } catch (error) {
     if (error.name === "AbortError") {
-      els.fullTranslationStatus.textContent = "翻译已取消";
+      setStatus("翻译已取消");
       return;
     }
-    els.fullTranslationStatus.textContent = "翻译服务暂不可用";
     setStatus("全文翻译失败");
   } finally {
     els.translateAllButton.disabled = false;
@@ -918,7 +914,6 @@ function bindEvents() {
 
   els.readAllButton.addEventListener("click", () => speak(getReadableText(), "朗读全文"));
   els.translateAllButton.addEventListener("click", translateAllText);
-  els.closeTranslationButton.addEventListener("click", resetFullTranslation);
   els.pauseButton.addEventListener("click", () => {
     if (!speechSession) {
       setStatus("没有正在朗读的内容");
