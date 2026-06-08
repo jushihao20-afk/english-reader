@@ -10,12 +10,18 @@ const els = {
   targetLang: document.querySelector("#targetLang"),
   rateRange: document.querySelector("#rateRange"),
   rateValue: document.querySelector("#rateValue"),
+  translateAllButton: document.querySelector("#translateAllButton"),
   readAllButton: document.querySelector("#readAllButton"),
   pauseButton: document.querySelector("#pauseButton"),
   stopButton: document.querySelector("#stopButton"),
   selectionBar: document.querySelector("#selectionBar"),
   selectionPreview: document.querySelector("#selectionPreview"),
   readSelectionButton: document.querySelector("#readSelectionButton"),
+  fullTranslationPanel: document.querySelector("#fullTranslationPanel"),
+  fullTranslationLabel: document.querySelector("#fullTranslationLabel"),
+  fullTranslationStatus: document.querySelector("#fullTranslationStatus"),
+  fullTranslationContent: document.querySelector("#fullTranslationContent"),
+  closeTranslationButton: document.querySelector("#closeTranslationButton"),
   statusDot: document.querySelector("#statusDot"),
   statusText: document.querySelector("#statusText"),
   wordCard: document.querySelector("#wordCard"),
@@ -94,6 +100,7 @@ let activeWord = null;
 let lastLookupController = null;
 let pdfModule = null;
 const lookupCache = new Map();
+const fullTranslationCache = new Map();
 
 function setStatus(text, speaking = false) {
   els.statusText.textContent = text;
@@ -124,6 +131,7 @@ function tokenizeParagraph(paragraph) {
 
 function renderText(rawText) {
   const text = rawText.replace(/\r\n?/g, "\n").trim();
+  resetFullTranslation();
 
   if (!text) {
     els.reader.innerHTML = `<p class="reader-placeholder">阅读区暂无内容。上传文档或输入文本后，点击“载入阅读区”。</p>`;
@@ -148,10 +156,14 @@ function renderText(rawText) {
 }
 
 function getReadableText() {
+  return getReaderParagraphs()
+    .join("\n\n");
+}
+
+function getReaderParagraphs() {
   return Array.from(els.reader.querySelectorAll(".paragraph"))
     .map((paragraph) => paragraph.innerText.replace(/^▶\s*/, "").trim())
-    .filter(Boolean)
-    .join("\n\n");
+    .filter(Boolean);
 }
 
 function selectedVoice() {
@@ -489,6 +501,127 @@ function cleanTranslation(value, word, target) {
     .join("；");
 }
 
+function cleanFullTranslation(value, target) {
+  const cleaned = decodeEntities(String(value || ""))
+    .replace(/<[^>]*>/g, "")
+    .replace(/\s+/g, " ")
+    .replace(/\b(MyMemory|translated by|warning)\b.*$/i, "")
+    .trim();
+
+  if (!cleaned) {
+    return "";
+  }
+
+  if (target === "zh-CN" && !/[\u3400-\u9fff]/.test(cleaned)) {
+    return "";
+  }
+
+  return cleaned;
+}
+
+function splitTextForTranslation(text, maxLength = 420) {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return [];
+  }
+
+  const sentences = normalized.match(/[^.!?。！？]+[.!?。！？]?/g) || [normalized];
+  const chunks = [];
+  let current = "";
+
+  for (const sentence of sentences.map((item) => item.trim()).filter(Boolean)) {
+    if (`${current} ${sentence}`.trim().length <= maxLength) {
+      current = `${current} ${sentence}`.trim();
+      continue;
+    }
+    if (current) {
+      chunks.push(current);
+    }
+    chunks.push(...splitLongChunk(sentence, maxLength));
+    current = "";
+  }
+
+  if (current) {
+    chunks.push(current);
+  }
+
+  return chunks;
+}
+
+async function translateChunk(text, target, signal) {
+  const cacheKey = `${target}:${text}`;
+  if (fullTranslationCache.has(cacheKey)) {
+    return fullTranslationCache.get(cacheKey);
+  }
+
+  const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|${encodeURIComponent(target)}`, { signal });
+  if (!response.ok) {
+    throw new Error("Full translation failed");
+  }
+
+  const data = await response.json();
+  const translated = cleanFullTranslation(data?.responseData?.translatedText, target);
+  const result = translated || "该段暂未获得可靠翻译。";
+  fullTranslationCache.set(cacheKey, result);
+  return result;
+}
+
+function resetFullTranslation() {
+  els.fullTranslationPanel.hidden = true;
+  els.fullTranslationContent.innerHTML = "";
+  els.fullTranslationStatus.textContent = "准备翻译";
+}
+
+async function translateAllText() {
+  const paragraphs = getReaderParagraphs();
+  if (!paragraphs.length) {
+    setStatus("没有可翻译内容");
+    return;
+  }
+
+  lastLookupController?.abort();
+  lastLookupController = new AbortController();
+  const target = els.targetLang.value;
+  const targetLabel = targetLanguageLabels[target]?.replace("词义", "") || "目标语言";
+  els.fullTranslationPanel.hidden = false;
+  els.fullTranslationLabel.textContent = `全文翻译 · ${targetLabel}`;
+  els.fullTranslationContent.innerHTML = "";
+  els.translateAllButton.disabled = true;
+
+  try {
+    for (let index = 0; index < paragraphs.length; index += 1) {
+      const paragraph = paragraphs[index];
+      const chunks = splitTextForTranslation(paragraph);
+      els.fullTranslationStatus.textContent = `正在翻译 ${index + 1}/${paragraphs.length}`;
+      const translatedChunks = [];
+
+      for (const chunk of chunks) {
+        translatedChunks.push(await translateChunk(chunk, target, lastLookupController.signal));
+      }
+
+      const block = document.createElement("div");
+      block.className = "translation-block";
+      block.innerHTML = `
+        <span>第 ${index + 1} 段</span>
+        <p>${escapeHtml(translatedChunks.join(" "))}</p>
+      `;
+      els.fullTranslationContent.append(block);
+    }
+
+    els.fullTranslationStatus.textContent = `已翻译 ${paragraphs.length} 段`;
+    setStatus("全文翻译完成");
+  } catch (error) {
+    if (error.name === "AbortError") {
+      els.fullTranslationStatus.textContent = "翻译已取消";
+      return;
+    }
+    els.fullTranslationStatus.textContent = "翻译服务暂不可用";
+    setStatus("全文翻译失败");
+  } finally {
+    els.translateAllButton.disabled = false;
+  }
+}
+
 function scoreTranslationMatch(match, word, target) {
   const translation = cleanTranslation(match.translation, word, target);
   if (!translation) {
@@ -784,6 +917,8 @@ function bindEvents() {
   });
 
   els.readAllButton.addEventListener("click", () => speak(getReadableText(), "朗读全文"));
+  els.translateAllButton.addEventListener("click", translateAllText);
+  els.closeTranslationButton.addEventListener("click", resetFullTranslation);
   els.pauseButton.addEventListener("click", () => {
     if (!speechSession) {
       setStatus("没有正在朗读的内容");
@@ -812,6 +947,7 @@ function bindEvents() {
   els.rateRange.addEventListener("input", () => {
     syncRateLabel();
   });
+  els.targetLang.addEventListener("change", resetFullTranslation);
 
   els.closeCardButton.addEventListener("click", closeWordCard);
 

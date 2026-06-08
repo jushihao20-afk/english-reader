@@ -64,6 +64,7 @@
               <input id="rateRange" type="range" min="0.35" max="1.25" step="0.05" value="0.85" />
             </div>
             <div class="toolbar-buttons">
+              <button class="icon-button" id="translateAllButton" type="button" title="全文翻译">译</button>
               <button class="icon-button" id="readAllButton" type="button" title="朗读全文">▶</button>
               <button class="icon-button" id="pauseButton" type="button" title="暂停/继续">Ⅱ</button>
               <button class="icon-button" id="stopButton" type="button" title="停止">■</button>
@@ -74,6 +75,17 @@
             <span id="selectionPreview"></span>
             <button id="readSelectionButton" type="button">朗读选中</button>
           </div>
+
+          <section class="full-translation" id="fullTranslationPanel" hidden aria-live="polite">
+            <div class="full-translation-header">
+              <div>
+                <span id="fullTranslationLabel">全文翻译</span>
+                <strong id="fullTranslationStatus">准备翻译</strong>
+              </div>
+              <button class="icon-button" id="closeTranslationButton" type="button" title="关闭全文翻译">×</button>
+            </div>
+            <div class="full-translation-content" id="fullTranslationContent"></div>
+          </section>
 
           <article class="reader" id="reader" tabindex="0" aria-label="英语正文"></article>
         </section>
