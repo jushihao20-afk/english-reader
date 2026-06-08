@@ -435,7 +435,7 @@ input[type="range"] {
 }
 
 .definition-item span,
-.translation-box span {
+.meaning-row span {
   color: var(--muted);
   font-size: 0.8rem;
   font-weight: 800;
@@ -494,20 +494,22 @@ input[type="range"] {
   line-height: 1.45;
 }
 
-.translation-box {
+.meaning-row {
   display: grid;
   gap: 6px;
-  margin-top: 14px;
+  margin: 0 0 14px;
   padding: 12px;
   border-radius: 8px;
-  background: #f8fafc;
+  background: #ecfdf5;
+  border: 1px solid #c8eadf;
 }
 
-.translation-box strong {
+.meaning-row strong {
+  color: var(--green);
   line-height: 1.45;
 }
 
-.translation-box small {
+.meaning-row small {
   color: var(--muted);
   line-height: 1.4;
 }

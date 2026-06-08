@@ -374,7 +374,7 @@ function resetCard(word) {
   els.phoneticText.textContent = "查询中...";
   els.speakWordButton.dataset.audio = "";
   els.definitionList.innerHTML = `<div class="definition-item"><span class="pos-badge">查询</span><p>正在核对词性、词义和发音。</p></div>`;
-  els.translationLabel.textContent = targetLanguageLabels[els.targetLang.value] || "目标语言词义";
+  els.translationLabel.textContent = "本文词义";
   els.translationSummary.textContent = "查询中...";
   els.confidenceText.textContent = "正在筛选高可信翻译结果";
 }
