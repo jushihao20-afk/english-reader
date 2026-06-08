@@ -418,7 +418,7 @@ input[type="range"] {
 
 .definition-list {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   margin: 12px 0;
 }
 
@@ -427,15 +427,58 @@ input[type="range"] {
   padding-left: 10px;
 }
 
-.definition-item span {
+.definition-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+.definition-item span,
+.translation-box span {
   color: var(--muted);
   font-size: 0.8rem;
   font-weight: 800;
 }
 
+.pos-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border-radius: 6px;
+  background: #eaf1ff;
+  color: var(--blue) !important;
+  padding: 0 8px;
+}
+
+.pos-name {
+  text-transform: lowercase;
+}
+
 .definition-item p {
   margin: 4px 0 0;
   line-height: 1.5;
+}
+
+.definition-item ol {
+  margin: 7px 0 0;
+  padding-left: 20px;
+}
+
+.definition-item li {
+  margin: 0 0 8px;
+}
+
+.definition-item em {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.local-meaning {
+  color: var(--green);
+  font-weight: 800;
 }
 
 .translation-box {
@@ -447,10 +490,13 @@ input[type="range"] {
   background: #f8fafc;
 }
 
-.translation-box span {
+.translation-box strong {
+  line-height: 1.45;
+}
+
+.translation-box small {
   color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 800;
+  line-height: 1.4;
 }
 
 @media (max-width: 920px) {
