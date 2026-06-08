@@ -1,0 +1,17 @@
+{
+  "name": "english-reader",
+  "version": "1.0.0",
+  "description": "A browser-based English reading assistant with text upload, read-aloud, selection playback, and word dictionary cards.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "keywords": [
+    "english",
+    "reader",
+    "speech",
+    "dictionary"
+  ],
+  "author": "",
+  "license": "MIT"
+}

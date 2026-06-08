@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>英语阅读器</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
+    <script defer src="./app.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">English Reading Workspace</p>
+          <h1>英语阅读器</h1>
+        </div>
+        <div class="playback-status" aria-live="polite">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">准备阅读</span>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <section class="source-panel" aria-label="文本来源">
+          <div class="panel-heading">
+            <h2>文本来源</h2>
+            <button class="icon-button" id="clearButton" type="button" title="清空">⌫</button>
+          </div>
+
+          <label class="drop-zone" for="fileInput" id="dropZone">
+            <input id="fileInput" type="file" accept=".txt,.md,.markdown,.html,.htm,.pdf,.docx,.doc" />
+            <span class="drop-title">上传英语文档</span>
+            <span class="drop-note">TXT / Markdown / HTML 可离线读取，PDF / DOCX 使用在线解析库</span>
+          </label>
+
+          <label class="input-label" for="textInput">或直接输入文本</label>
+          <textarea id="textInput" spellcheck="false">Learning English becomes easier when reading feels active. Select any sentence to hear it aloud, or click a word to open a small dictionary card with pronunciation and translation.</textarea>
+
+          <div class="source-actions">
+            <button class="primary-button" id="renderButton" type="button">载入阅读区</button>
+            <button class="secondary-button" id="sampleButton" type="button">示例文本</button>
+          </div>
+        </section>
+
+        <section class="reader-panel" aria-label="阅读区域">
+          <div class="toolbar">
+            <div class="control-group">
+              <label for="voiceSelect">朗读语言</label>
+              <select id="voiceSelect"></select>
+            </div>
+            <div class="control-group">
+              <label for="targetLang">翻译</label>
+              <select id="targetLang">
+                <option value="zh-CN">中文</option>
+                <option value="ja">日语</option>
+                <option value="ko">韩语</option>
+                <option value="fr">法语</option>
+                <option value="es">西班牙语</option>
+              </select>
+            </div>
+            <div class="control-group compact">
+              <label for="rateRange">语速 <span id="rateValue">1.0</span></label>
+              <input id="rateRange" type="range" min="0.6" max="1.4" step="0.1" value="1" />
+            </div>
+            <div class="toolbar-buttons">
+              <button class="icon-button" id="readAllButton" type="button" title="朗读全文">▶</button>
+              <button class="icon-button" id="pauseButton" type="button" title="暂停/继续">Ⅱ</button>
+              <button class="icon-button" id="stopButton" type="button" title="停止">■</button>
+            </div>
+          </div>
+
+          <div class="selection-bar" id="selectionBar" hidden>
+            <span id="selectionPreview"></span>
+            <button id="readSelectionButton" type="button">朗读选中</button>
+          </div>
+
+          <article class="reader" id="reader" tabindex="0" aria-label="英语正文"></article>
+        </section>
+      </main>
+    </div>
+
+    <aside class="word-card" id="wordCard" hidden aria-live="polite">
+      <div class="word-card-header">
+        <div>
+          <p class="word-label" id="wordLanguage">English word</p>
+          <h3 id="cardWord">word</h3>
+        </div>
+        <button class="icon-button" id="closeCardButton" type="button" title="关闭">×</button>
+      </div>
+      <div class="phonetic-row">
+        <button class="audio-button" id="speakWordButton" type="button">▶ 发音</button>
+        <span id="phoneticText">查询中...</span>
+      </div>
+      <div class="definition-list" id="definitionList"></div>
+      <div class="translation-box">
+        <span>翻译</span>
+        <strong id="translationText">查询中...</strong>
+      </div>
+    </aside>
+  </body>
+</html>
