@@ -89,6 +89,7 @@ const targetLanguageLabels = {
 
 let voices = [];
 let currentUtterance = null;
+let speechSession = null;
 let activeWord = null;
 let lastLookupController = null;
 let pdfModule = null;
@@ -158,6 +159,142 @@ function selectedVoice() {
   return voices.find((voice) => voice.name === selectedName) || voices.find((voice) => voice.lang.startsWith("en"));
 }
 
+function rateLabel(rate) {
+  if (rate <= 0.5) {
+    return `${rate.toFixed(2)} · 特慢`;
+  }
+  if (rate <= 0.8) {
+    return `${rate.toFixed(2)} · 慢速`;
+  }
+  if (rate <= 0.95) {
+    return `${rate.toFixed(2)} · 轻慢`;
+  }
+  if (rate <= 1.05) {
+    return `${rate.toFixed(2)} · 正常`;
+  }
+  return `${rate.toFixed(2)} · 快速`;
+}
+
+function syncRateLabel() {
+  els.rateValue.textContent = rateLabel(Number(els.rateRange.value));
+}
+
+function pauseForRate(rate, chunk) {
+  const punctuationBonus = /[.!?。！？]$/.test(chunk.trim()) ? 180 : 0;
+  if (rate <= 0.45) {
+    return 760 + punctuationBonus;
+  }
+  if (rate <= 0.6) {
+    return 560 + punctuationBonus;
+  }
+  if (rate <= 0.8) {
+    return 360 + punctuationBonus;
+  }
+  if (rate <= 0.95) {
+    return 160 + punctuationBonus;
+  }
+  return 0;
+}
+
+function splitLongChunk(chunk, maxLength) {
+  const pieces = [];
+  let remaining = chunk.trim();
+
+  while (remaining.length > maxLength) {
+    const slice = remaining.slice(0, maxLength);
+    const splitAt = Math.max(slice.lastIndexOf(" "), slice.lastIndexOf(","));
+    const index = splitAt > maxLength * 0.45 ? splitAt + 1 : maxLength;
+    pieces.push(remaining.slice(0, index).trim());
+    remaining = remaining.slice(index).trim();
+  }
+
+  if (remaining) {
+    pieces.push(remaining);
+  }
+
+  return pieces;
+}
+
+function splitTextForSpeech(text, rate) {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return [];
+  }
+
+  const maxLength = rate <= 0.6 ? 110 : rate <= 0.85 ? 170 : 260;
+  const splitter = rate <= 0.85
+    ? /[^.!?,;:。！？,，；：]+[.!?,;:。！？,，；：]?/g
+    : /[^.!?。！？]+[.!?。！？]?/g;
+  const chunks = normalized.match(splitter) || [normalized];
+
+  return chunks
+    .flatMap((chunk) => splitLongChunk(chunk, maxLength))
+    .map((chunk) => chunk.trim())
+    .filter(Boolean);
+}
+
+function createUtterance(text, rate) {
+  const utterance = new SpeechSynthesisUtterance(text);
+  const voice = selectedVoice();
+  utterance.lang = voice?.lang || "en-US";
+  utterance.voice = voice || null;
+  utterance.rate = Math.max(0.1, Math.min(1.25, rate));
+  utterance.pitch = 1;
+  return utterance;
+}
+
+function stopSpeech(status = "已停止") {
+  if (speechSession?.pauseTimer) {
+    window.clearTimeout(speechSession.pauseTimer);
+  }
+  speechSession = null;
+  currentUtterance = null;
+  window.speechSynthesis.cancel();
+  setStatus(status);
+}
+
+function runSpeechSession(session) {
+  if (!speechSession || session.id !== speechSession.id || session.stopped || session.paused) {
+    return;
+  }
+
+  const chunk = session.chunks[session.index];
+  if (!chunk) {
+    speechSession = null;
+    currentUtterance = null;
+    setStatus("朗读完成");
+    return;
+  }
+
+  setStatus(`${session.status} ${session.index + 1}/${session.chunks.length}`, true);
+  currentUtterance = createUtterance(chunk, session.rate);
+  currentUtterance.onstart = () => {
+    if (speechSession?.id === session.id) {
+      setStatus(`${session.status} ${session.index + 1}/${session.chunks.length}`, true);
+    }
+  };
+  currentUtterance.onend = () => {
+    if (!speechSession || session.id !== speechSession.id || session.stopped) {
+      return;
+    }
+    session.index += 1;
+    const pause = pauseForRate(session.rate, chunk);
+    if (pause > 0) {
+      setStatus("停顿中", true);
+      session.pauseTimer = window.setTimeout(() => runSpeechSession(session), pause);
+    } else {
+      runSpeechSession(session);
+    }
+  };
+  currentUtterance.onerror = () => {
+    if (speechSession?.id === session.id) {
+      setStatus("朗读被中断");
+    }
+  };
+
+  window.speechSynthesis.speak(currentUtterance);
+}
+
 function speak(text, status = "朗读中") {
   const cleanText = text.replace(/\s+/g, " ").trim();
   if (!cleanText) {
@@ -165,16 +302,20 @@ function speak(text, status = "朗读中") {
     return;
   }
 
-  window.speechSynthesis.cancel();
-  currentUtterance = new SpeechSynthesisUtterance(cleanText);
-  currentUtterance.lang = selectedVoice()?.lang || "en-US";
-  currentUtterance.voice = selectedVoice() || null;
-  currentUtterance.rate = Number(els.rateRange.value);
-  currentUtterance.pitch = 1;
-  currentUtterance.onstart = () => setStatus(status, true);
-  currentUtterance.onend = () => setStatus("朗读完成");
-  currentUtterance.onerror = () => setStatus("朗读被中断");
-  window.speechSynthesis.speak(currentUtterance);
+  stopSpeech("准备朗读");
+  const rate = Number(els.rateRange.value);
+  const chunks = splitTextForSpeech(cleanText, rate);
+  speechSession = {
+    id: Date.now(),
+    chunks,
+    index: 0,
+    rate,
+    status,
+    stopped: false,
+    paused: false,
+    pauseTimer: null
+  };
+  runSpeechSession(speechSession);
 }
 
 function loadVoices() {
@@ -535,10 +676,9 @@ function bindEvents() {
     renderText(sampleText);
   });
   els.clearButton.addEventListener("click", () => {
-    window.speechSynthesis.cancel();
+    stopSpeech("已清空");
     els.textInput.value = "";
     renderText("");
-    setStatus("已清空");
   });
 
   els.fileInput.addEventListener("change", async (event) => {
@@ -621,21 +761,32 @@ function bindEvents() {
 
   els.readAllButton.addEventListener("click", () => speak(getReadableText(), "朗读全文"));
   els.pauseButton.addEventListener("click", () => {
-    if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+    if (!speechSession) {
+      setStatus("没有正在朗读的内容");
+      return;
+    }
+
+    if (!speechSession.paused) {
+      speechSession.paused = true;
+      if (speechSession.pauseTimer) {
+        window.clearTimeout(speechSession.pauseTimer);
+        speechSession.pauseTimer = null;
+      }
       window.speechSynthesis.pause();
       setStatus("已暂停");
     } else {
+      speechSession.paused = false;
       window.speechSynthesis.resume();
       setStatus("继续朗读", true);
+      if (!window.speechSynthesis.speaking) {
+        runSpeechSession(speechSession);
+      }
     }
   });
-  els.stopButton.addEventListener("click", () => {
-    window.speechSynthesis.cancel();
-    setStatus("已停止");
-  });
+  els.stopButton.addEventListener("click", () => stopSpeech("已停止"));
 
   els.rateRange.addEventListener("input", () => {
-    els.rateValue.textContent = Number(els.rateRange.value).toFixed(1);
+    syncRateLabel();
   });
 
   els.closeCardButton.addEventListener("click", () => {
@@ -655,5 +806,6 @@ function bindEvents() {
 
 bindEvents();
 loadVoices();
+syncRateLabel();
 window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
 renderText(els.textInput.value);
