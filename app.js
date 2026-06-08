@@ -362,6 +362,12 @@ function showCardAt(event) {
   els.wordCard.hidden = false;
 }
 
+function closeWordCard() {
+  els.wordCard.hidden = true;
+  activeWord?.classList.remove("active");
+  activeWord = null;
+}
+
 function resetCard(word) {
   els.cardWord.textContent = word;
   els.wordLanguage.textContent = "English word";
@@ -553,6 +559,7 @@ function renderDefinitions(result, word, translation) {
     .map((meaning) => {
       const posLabel = partOfSpeechLabels[meaning.partOfSpeech] || meaning.partOfSpeech;
       const localMeaning = fallbackEntry?.byPart?.[meaning.partOfSpeech] || "";
+      let exampleRendered = false;
       return `
       <div class="definition-item">
         <div class="definition-heading">
@@ -564,7 +571,7 @@ function renderDefinitions(result, word, translation) {
           ${meaning.definitions.map((item) => `
             <li>
               <p>${escapeHtml(item.definition)}</p>
-              ${item.example ? `<em>${escapeHtml(item.example)}</em>` : ""}
+              ${item.example && !exampleRendered ? (exampleRendered = true, `<em>${escapeHtml(item.example)}</em>`) : ""}
             </li>
           `).join("")}
         </ol>
@@ -736,6 +743,7 @@ function bindEvents() {
     activeWord?.classList.remove("active");
     activeWord = wordEl;
     activeWord.classList.add("active");
+    speak(wordEl.dataset.word, "朗读单词");
     openWordCard(wordEl.dataset.word, event);
   });
 
@@ -746,7 +754,23 @@ function bindEvents() {
     const wordEl = event.target.closest(".word");
     if (wordEl) {
       event.preventDefault();
+      activeWord?.classList.remove("active");
+      activeWord = wordEl;
+      activeWord.classList.add("active");
+      speak(wordEl.dataset.word, "朗读单词");
       openWordCard(wordEl.dataset.word, event);
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (els.wordCard.hidden) {
+      return;
+    }
+
+    const clickedWordCard = els.wordCard.contains(event.target);
+    const clickedWord = event.target.closest?.(".word");
+    if (!clickedWordCard && !clickedWord) {
+      closeWordCard();
     }
   });
 
@@ -789,10 +813,7 @@ function bindEvents() {
     syncRateLabel();
   });
 
-  els.closeCardButton.addEventListener("click", () => {
-    els.wordCard.hidden = true;
-    activeWord?.classList.remove("active");
-  });
+  els.closeCardButton.addEventListener("click", closeWordCard);
 
   els.speakWordButton.addEventListener("click", () => {
     const audioUrl = els.speakWordButton.dataset.audio;
