@@ -559,7 +559,7 @@ function renderDefinitions(result, word, translation) {
     .map((meaning) => {
       const posLabel = partOfSpeechLabels[meaning.partOfSpeech] || meaning.partOfSpeech;
       const localMeaning = fallbackEntry?.byPart?.[meaning.partOfSpeech] || "";
-      let exampleRendered = false;
+      const example = meaning.definitions.find((item) => item.example)?.example || "";
       return `
       <div class="definition-item">
         <div class="definition-heading">
@@ -571,10 +571,10 @@ function renderDefinitions(result, word, translation) {
           ${meaning.definitions.map((item) => `
             <li>
               <p>${escapeHtml(item.definition)}</p>
-              ${item.example && !exampleRendered ? (exampleRendered = true, `<em>${escapeHtml(item.example)}</em>`) : ""}
             </li>
           `).join("")}
         </ol>
+        ${example ? `<div class="example-line"><span>例句</span><em>${escapeHtml(example)}</em></div>` : ""}
       </div>
     `;
     })

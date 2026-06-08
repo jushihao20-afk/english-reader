@@ -469,16 +469,29 @@ input[type="range"] {
   margin: 0 0 8px;
 }
 
-.definition-item em {
-  display: block;
-  margin-top: 3px;
-  color: var(--muted);
-  line-height: 1.45;
-}
-
 .local-meaning {
   color: var(--green);
   font-weight: 800;
+}
+
+.example-line {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.example-line span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.example-line em {
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 .translation-box {
