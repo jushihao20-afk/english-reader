@@ -28,6 +28,7 @@
 ```text
 .
 ├── index.html          GitHub Pages 根入口，自动跳转到 public/
+├── .nojekyll           GitHub Pages 静态发布标记，避免把 README 当作站点首页
 ├── public/
 │   └── index.html      应用页面入口，可直接用浏览器打开
 ├── src/
