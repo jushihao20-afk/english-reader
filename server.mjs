@@ -4,6 +4,7 @@ import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
+const indexFile = join(root, "public", "index.html");
 const port = Number(process.env.PORT || 4173);
 const host = process.env.HOST || "127.0.0.1";
 
@@ -21,16 +22,16 @@ const mimeTypes = {
 
 function resolvePath(urlPath) {
   const cleanPath = decodeURIComponent(urlPath.split("?")[0]);
-  const normalized = normalize(cleanPath === "/" ? "/index.html" : cleanPath);
+  const normalized = normalize(cleanPath === "/" ? "/public/index.html" : cleanPath);
   const fullPath = join(root, normalized);
-  return fullPath.startsWith(root) ? fullPath : join(root, "index.html");
+  return fullPath.startsWith(root) ? fullPath : indexFile;
 }
 
 const server = createServer((request, response) => {
   const filePath = resolvePath(request.url || "/");
   const target = existsSync(filePath) && statSync(filePath).isFile()
     ? filePath
-    : join(root, "index.html");
+    : indexFile;
 
   response.writeHead(200, {
     "Content-Type": mimeTypes[extname(target)] || "application/octet-stream"

@@ -14,15 +14,24 @@
 
 ## 本地运行
 
-直接打开 `index.html` 即可使用主要功能。
+直接打开 `public/index.html` 即可使用主要功能。
 
 也可以使用 Node 启动本地服务器：
 
 ```bash
-node server.mjs
+npm start
 ```
 
 然后访问 `http://localhost:4173`。
+
+## 项目结构
+
+```text
+public/       页面入口和可直接打开的静态文件
+src/          前端样式和浏览器端应用逻辑
+server.mjs    本地静态文件服务器
+package.json  项目脚本和元数据
+```
 
 ## 说明
 
